@@ -1409,32 +1409,35 @@ contains
 
     ! ---------------------------------------------------------
     subroutine out_wfn_and_densities()
-      integer :: idir, isigma
+      integer :: idir, isigma, iout
 
       PUSH_SUB(em_resp_output.out_wfn_and_densities)
 
       do idir = 1, gr%sb%dim
         if(states_are_complex(st)) then 
-
-          if(gr%sb%dim == 3 .and. bitand(outp%what, OPTION__OUTPUT__ELF) /= 0) then
-            if(em_vars%nsigma == 1) then
-              call zlr_calc_elf(st, gr, em_vars%lr(idir, 1, ifactor))
-            else
-              call zlr_calc_elf(st, gr, em_vars%lr(idir, 1, ifactor), em_vars%lr(idir, 2, ifactor))
+          do iout = 1, size(outp%what)
+            if(gr%sb%dim == 3 .and. bitand(outp%what(iout), OPTION__OUTPUT__ELF) /= 0) then
+              if(em_vars%nsigma == 1) then
+                call zlr_calc_elf(st, gr, em_vars%lr(idir, 1, ifactor))
+              else
+                call zlr_calc_elf(st, gr, em_vars%lr(idir, 1, ifactor), em_vars%lr(idir, 2, ifactor))
+              end if
             end if
-          end if
+          end do
+
           do isigma = 1, em_vars%nsigma
             call zoutput_lr(outp, namespace, dirname, st, gr, em_vars%lr(idir, isigma, ifactor), idir, isigma, geo, units_out%force)
           end do
         else
-
-          if(gr%sb%dim == 3 .and. bitand(outp%what, OPTION__OUTPUT__ELF) /= 0) then
-            if(em_vars%nsigma == 1) then
-              call dlr_calc_elf(st, gr, em_vars%lr(idir, 1, ifactor))
-            else
-              call dlr_calc_elf(st, gr, em_vars%lr(idir, 1, ifactor), em_vars%lr(idir, 2, ifactor))
+          do iout = 1, size(outp%what)
+            if(gr%sb%dim == 3 .and. bitand(outp%what(iout), OPTION__OUTPUT__ELF) /= 0) then
+              if(em_vars%nsigma == 1) then
+                call dlr_calc_elf(st, gr, em_vars%lr(idir, 1, ifactor))
+              else
+                call dlr_calc_elf(st, gr, em_vars%lr(idir, 1, ifactor), em_vars%lr(idir, 2, ifactor))
+              end if
             end if
-          end if
+          end do
 
           do isigma = 1, em_vars%nsigma
             call doutput_lr(outp, namespace, dirname, st, gr, em_vars%lr(idir, isigma, ifactor), idir, isigma, geo, units_out%force)

@@ -378,7 +378,7 @@ contains
 #ifdef HAVE_MPI
     logical                      :: stopping_tmp
 #endif
-    integer                      :: iter, ierr, scsteps
+    integer                      :: iter, ierr, scsteps, iout
     FLOAT                        :: etime
     type(profile_t),        save :: prof
     type(restart_t)              :: restart_load, restart_dump
@@ -443,9 +443,13 @@ contains
 
       geo%kinetic_energy = ion_dynamics_kinetic_energy(geo)
     else
-      if(bitand(sys%outp%what, OPTION__OUTPUT__FORCES) /= 0) then
-        call forces_calculate(gr, sys%namespace, geo, sys%hm, st, sys%ks, t = td%iter*td%dt, dt = td%dt)
+      do iout = 1, size(sys%outp%what)
+        if(bitand(sys%outp%what(iout), OPTION__OUTPUT__FORCES) /= 0) then
+          call forces_calculate(gr, sys%namespace, geo, sys%hm, st, sys%ks, t = td%iter*td%dt, dt = td%dt)
+        end if
       end if  
+        end if
+      end do
     end if
 
     call td_write_init(write_handler, sys%namespace, sys%outp, gr, st, sys%hm, geo, sys%ks, &

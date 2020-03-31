@@ -29,7 +29,7 @@ subroutine X(output_modelmb) (outp, namespace, dir, gr, st, geo)
   type(geometry_t),       intent(in)    :: geo
 
   integer :: mm
-  integer :: ierr, iunit
+  integer :: ierr, iunit, iout
   integer :: ncombo
   integer :: itype
   integer, allocatable :: ndiagrams(:)
@@ -75,52 +75,54 @@ subroutine X(output_modelmb) (outp, namespace, dir, gr, st, geo)
 
   SAFE_ALLOCATE(wf(1:gr%mesh%np))
 
-  call modelmb_density_matrix_nullify(denmat)
-  if(bitand(outp%what, OPTION__OUTPUT__MMB_DEN) /= 0) then
-    call modelmb_density_matrix_init(dirname, namespace, st, denmat)
-  end if
-
-  do mm = 1, st%nst
-!TODO : check if there is another interface for get_states to avoid trivial slice of wf
-    call states_elec_get_state(st, gr%mesh, 1, mm, 1, wf)
-
-    youngstring = ""
-    if (all(st%mmb_nspindown(:,mm) >= 0)) then
-      do itype = 1, st%modelmbparticles%ntype_of_particle
-        write (tmpstring, '(3x,I4,1x,I4)') st%mmb_nspindown(itype,mm), st%mmb_iyoung(itype,mm)
-        youngstring = trim(youngstring) // trim(tmpstring)
-      end do
-    else 
-      youngstring  = " state does not have an associated Young diagram"
-    end if
-    write (iunit, '(a,I5,3x,E16.6,5x,E14.6,2x,a)') &
-      "  ", mm, st%eigenval(mm,1), st%mmb_proj(mm), trim(youngstring)
-
-    symmetries_satisfied = .true.
-    if (st%mmb_proj(mm) < CNST(1.e-6)) then
-      symmetries_satisfied = .false.
+  do iout = 1, size(outp%what)
+    call modelmb_density_matrix_nullify(denmat)
+    if(bitand(outp%what(iout), OPTION__OUTPUT__MMB_DEN) /= 0) then
+      call modelmb_density_matrix_init(dirname, namespace, st, denmat)
     end if
 
-    if(bitand(outp%what, OPTION__OUTPUT__MMB_DEN) /= 0 .and. symmetries_satisfied) then
-      call X(modelmb_density_matrix_write)(gr, st, wf, mm, denmat, namespace)
-    end if
+    do mm = 1, st%nst
+  !TODO : check if there is another interface for get_states to avoid trivial slice of wf
+      call states_elec_get_state(st, gr%mesh, 1, mm, 1, wf)
 
-    if(bitand(outp%what, OPTION__OUTPUT__MMB_WFS) /= 0 .and. symmetries_satisfied) then
-      fn_unit = units_out%length**(-gr%mesh%sb%dim)
-      write(filename, '(a,i4.4)') 'wf-st', mm
-      call X(io_function_output)(outp%how, trim(dirname), trim(filename), namespace, &
-        gr%mesh, wf, fn_unit, ierr, geo = geo)
-    end if
+      youngstring = ""
+      if (all(st%mmb_nspindown(:,mm) >= 0)) then
+        do itype = 1, st%modelmbparticles%ntype_of_particle
+          write (tmpstring, '(3x,I4,1x,I4)') st%mmb_nspindown(itype,mm), st%mmb_iyoung(itype,mm)
+          youngstring = trim(youngstring) // trim(tmpstring)
+        end do
+      else
+        youngstring  = " state does not have an associated Young diagram"
+      end if
+      write (iunit, '(a,I5,3x,E16.6,5x,E14.6,2x,a)') &
+        "  ", mm, st%eigenval(mm,1), st%mmb_proj(mm), trim(youngstring)
 
+      symmetries_satisfied = .true.
+      if (st%mmb_proj(mm) < 1.e-6) then
+        symmetries_satisfied = .false.
+      end if
+
+      if(bitand(outp%what(iout), OPTION__OUTPUT__MMB_DEN) /= 0 .and. symmetries_satisfied) then
+        call X(modelmb_density_matrix_write)(gr, st, wf, mm, denmat, namespace)
+      end if
+
+      if(bitand(outp%what(iout), OPTION__OUTPUT__MMB_WFS) /= 0 .and. symmetries_satisfied) then
+        fn_unit = units_out%length**(-gr%mesh%sb%dim)
+        write(filename, '(a,i4.4)') 'wf-st', mm
+        call X(io_function_output)(outp%how(iout), trim(dirname), trim(filename), namespace, &
+          gr%mesh, wf, fn_unit, ierr, geo = geo)
+      end if
+
+    end do
+
+    call io_close(iunit)
+
+    if(bitand(outp%what(iout), OPTION__OUTPUT__MMB_DEN) /= 0) then
+      call modelmb_density_matrix_end (denmat)
+    end if
   end do
 
-  call io_close(iunit)
-
   SAFE_DEALLOCATE_A(wf)
-
-  if(bitand(outp%what, OPTION__OUTPUT__MMB_DEN) /= 0) then
-    call modelmb_density_matrix_end (denmat)
-  end if
 
   POP_SUB(X(output_modelmb))
 

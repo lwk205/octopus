@@ -439,7 +439,7 @@ subroutine pes_mask_output_states(namespace, st, gr, geo, dir, outp, mask)
   type(output_t),        intent(in)    :: outp
   type(pes_mask_t),      intent(inout) :: mask
 
-  integer :: ik, ist, idim, is, ierr
+  integer :: ik, ist, idim, is, ierr, iout
   character(len=80) :: fname
   type(unit_t) :: fn_unit
 
@@ -495,48 +495,50 @@ subroutine pes_mask_output_states(namespace, st, gr, geo, dir, outp, mask)
   call density_calc_end(dens_calc)
 
   ! THE OUTPUT 
-  if(bitand(outp%what, OPTION__OUTPUT__PES_DENSITY) /= 0) then
-    fn_unit = units_out%length**(-gr%mesh%sb%dim)
-    do is = 1, st%d%nspin
-      if(st%d%nspin == 1) then
-        write(fname, '(a)') 'pes_den'
-      else
-        write(fname, '(a,i1)') 'pes_den-sp', is
-      end if
-      call dio_function_output(outp%how, dir, fname, namespace, gr%fine%mesh, &
-        RhoAB(:, is), fn_unit, ierr, geo = geo, grp = st%dom_st_kpt_mpi_grp)
-    end do
-  end if
+  do iout = 1, size(outp%what)
+    if(bitand(outp%what(iout), OPTION__OUTPUT__PES_DENSITY) /= 0) then
+      fn_unit = units_out%length**(-gr%mesh%sb%dim)
+      do is = 1, st%d%nspin
+        if(st%d%nspin == 1) then
+          write(fname, '(a)') 'pes_den'
+        else
+          write(fname, '(a,i1)') 'pes_den-sp', is
+        end if
+        call dio_function_output(outp%how(iout), dir, fname, namespace, gr%fine%mesh, &
+          RhoAB(:, is), fn_unit, ierr, geo = geo, grp = st%dom_st_kpt_mpi_grp)
+      end do
+    end if
 
 
-  if(bitand(outp%what, OPTION__OUTPUT__PES_WFS) /= 0) then
-    fn_unit = sqrt(units_out%length**(-gr%mesh%sb%dim))
-    do ist = st%st_start, st%st_end
-!        if(loct_isinstringlist(ist, outp%wfs_list)) then
-        do ik = st%d%kpt%start, st%d%kpt%end
-          do idim = 1, st%d%dim
-            if(st%d%nik > 1) then
-              if(st%d%dim > 1) then
-                write(fname, '(a,i3.3,a,i4.4,a,i1)') 'pes_wf-k', ik, '-st', ist, '-sd', idim
+    if(bitand(outp%what(iout), OPTION__OUTPUT__PES_WFS) /= 0) then
+      fn_unit = sqrt(units_out%length**(-gr%mesh%sb%dim))
+      do ist = st%st_start, st%st_end
+  !        if(loct_isinstringlist(ist, outp%wfs_list)) then
+          do ik = st%d%kpt%start, st%d%kpt%end
+            do idim = 1, st%d%dim
+              if(st%d%nik > 1) then
+                if(st%d%dim > 1) then
+                  write(fname, '(a,i3.3,a,i4.4,a,i1)') 'pes_wf-k', ik, '-st', ist, '-sd', idim
+                else
+                  write(fname, '(a,i3.3,a,i4.4)')      'pes_wf-k', ik, '-st', ist
+                end if
               else
-                write(fname, '(a,i3.3,a,i4.4)')      'pes_wf-k', ik, '-st', ist
+                if(st%d%dim > 1) then
+                  write(fname, '(a,i4.4,a,i1)')        'pes_wf-st', ist, '-sd', idim
+                else
+                  write(fname, '(a,i4.4)')             'pes_wf-st', ist
+                end if
               end if
-            else
-              if(st%d%dim > 1) then
-                write(fname, '(a,i4.4,a,i1)')        'pes_wf-st', ist, '-sd', idim
-              else
-                write(fname, '(a,i4.4)')             'pes_wf-st', ist
-              end if
-            end if
-              
-            call zio_function_output(outp%how, dir, fname, namespace, gr%mesh, &
-              PsiAB(1:, idim, ist, ik), fn_unit, ierr, geo = geo)
 
+              call zio_function_output(outp%how(iout), dir, fname, namespace, gr%mesh, &
+                PsiAB(1:, idim, ist, ik), fn_unit, ierr, geo = geo)
+
+            end do
           end do
-        end do
- !       end if
-    end do
-  end if
+  !       end if
+      end do
+    end if
+  end do
 
   SAFE_DEALLOCATE_A(PsiAB)
   SAFE_DEALLOCATE_A(RhoAB)
@@ -1886,7 +1888,7 @@ subroutine pes_mask_output(mask, mesh, st, outp, namespace, file, gr, geo, iter)
 
   CMPLX, allocatable :: wfAk(:,:,:,:,:,:), psi(:)
   FLOAT :: pesK(1:mask%fs_n_global(1),1:mask%fs_n_global(2),1:mask%fs_n_global(3)),pol(3)
-  integer :: ist, ik, idim, ierr, st1, st2, k1, k2
+  integer :: ist, ik, idim, ierr, st1, st2, k1, k2, iout
   character(len=100) :: fn
   character(len=256) :: dir
   type(cube_function_t) :: cf1
@@ -1896,106 +1898,106 @@ subroutine pes_mask_output(mask, mesh, st, outp, namespace, file, gr, geo, iter)
   PUSH_SUB(pes_mask_output)
   call profiling_in(prof, "PESMASK_out")
   
-  !Output info for easy post-process
-  if(mpi_grp_is_root(mpi_world)) call pes_mask_write_info(mask, "td.general", namespace)
- 
+  do iout = 1, size(outp%what)
+    !Output info for easy post-process
+    if(mpi_grp_is_root(mpi_world)) call pes_mask_write_info(mask, "td.general", namespace)
 
-  !Photoelectron wavefunction and density in real space
-  if(bitand(outp%what, OPTION__OUTPUT__PES_WFS) /= 0  .or.  bitand(outp%what, OPTION__OUTPUT__PES_DENSITY) /= 0 ) then
-    write(dir, '(a,i7.7)') "td.", iter  ! name of directory
-    call  pes_mask_output_states(namespace, st, gr, geo, dir, outp, mask)
-  end if
-  
-  if (simul_box_is_periodic(mesh%sb)) then
-    ! For periodic systems the results must be obtained using
-    ! the oct-photoelectron-spectrum routine
-    call profiling_out(prof)
-    POP_SUB(pes_mask_output)
-    return
-  end if
 
-  !Write the output in the td.00iter directories
-  dir = file 
-  if(bitand(outp%what, OPTION__OUTPUT__PES) /= 0 ) then
-    write(dir, '(a,i7.7,a)') "td.", iter,"/PESM"  ! name of directory
-  end if
+    !Photoelectron wavefunction and density in real space
+    if(bitand(outp%what(iout), OPTION__OUTPUT__PES_WFS) /= 0  .or.  bitand(outp%what(iout), OPTION__OUTPUT__PES_DENSITY) /= 0 ) then
+      write(dir, '(a,i7.7)') "td.", iter  ! name of directory
+      call pes_mask_output_states(namespace, st, gr, geo, dir, outp, mask)
+    end if
 
- !The contribution of \Psi_A(x,t2) to the PES 
-  if(mask%add_psia) then 
-    st1 = st%st_start
-    st2 = st%st_end
-    k1 = st%d%kpt%start
-    k2 = st%d%kpt%end
-    SAFE_ALLOCATE(wfAk(1:mask%ll(1), 1:mask%ll(2), 1:mask%ll(3),1:st%d%dim,st1:st2,k1:k2))
-    wfAk = M_z0
-  
-    call cube_function_null(cf1)    
-    call zcube_function_alloc_RS(mask%cube, cf1, force_alloc = .true.) 
-    call cube_function_alloc_FS(mask%cube, cf1, force_alloc = .true.) 
+    if (simul_box_is_periodic(mesh%sb)) then
+      ! For periodic systems the results must be obtained using
+      ! the oct-photoelectron-spectrum routine
+      continue
+    end if
 
-    SAFE_ALLOCATE(psi(1:mesh%np_part))
+    !Write the output in the td.00iter directories
+    dir = file
+    if(bitand(outp%what(iout), OPTION__OUTPUT__PES) /= 0 ) then
+      write(dir, '(a,i7.7,a)') "td.", iter,"/PESM"  ! name of directory
+    end if
 
-    do ik = st%d%kpt%start, st%d%kpt%end
-      do ist =  st%st_start, st%st_end
-        do idim = 1, st%d%dim
-          call states_elec_get_state(st, mesh, idim, ist, ik, psi)
-          call pes_mask_mesh_to_cube(mask, psi, cf1)
-          cf1%zRs = (M_ONE - mask%cM%zRs**10) * cf1%zRs ! mask^10 is practically a box function
-          call pes_mask_X_to_K(mask,mesh,cf1%zRs,cf1%Fs)
-          wfAk(:,:,:,idim, ist, ik) = cf1%Fs
+    !The contribution of \Psi_A(x,t2) to the PES
+    if(mask%add_psia) then
+      st1 = st%st_start
+      st2 = st%st_end
+      k1 = st%d%kpt%start
+      k2 = st%d%kpt%end
+      SAFE_ALLOCATE(wfAk(1:mask%ll(1), 1:mask%ll(2), 1:mask%ll(3),1:st%d%dim,st1:st2,k1:k2))
+      wfAk = M_z0
+
+      call cube_function_null(cf1)
+      call zcube_function_alloc_RS(mask%cube, cf1, force_alloc = .true.)
+      call cube_function_alloc_FS(mask%cube, cf1, force_alloc = .true.)
+
+      SAFE_ALLOCATE(psi(1:mesh%np_part))
+
+      do ik = st%d%kpt%start, st%d%kpt%end
+        do ist =  st%st_start, st%st_end
+          do idim = 1, st%d%dim
+            call states_elec_get_state(st, mesh, idim, ist, ik, psi)
+            call pes_mask_mesh_to_cube(mask, psi, cf1)
+            cf1%zRs = (M_ONE - mask%cM%zRs**10) * cf1%zRs ! mask^10 is practically a box function
+            call pes_mask_X_to_K(mask,mesh,cf1%zRs,cf1%Fs)
+            wfAk(:,:,:,idim, ist, ik) = cf1%Fs
+          end do
         end do
       end do
+
+      SAFE_DEALLOCATE_A(psi)
+
+      call zcube_function_free_RS(mask%cube, cf1)
+      call  cube_function_free_FS(mask%cube, cf1)
+    end if
+
+    !Create the full momentum-resolved PES matrix
+    pesK = M_ZERO
+    ! This loop over kpoints should not be reached since for periodic systems
+    ! this part is skipped. I keep this here for the moment just for the debug purposes.
+    do ik = st%d%kpt%start, st%d%kpt%end
+
+      if(mask%add_psia) then
+        call pes_mask_fullmap(mask, st, ik, pesK, wfAk)
+      else
+        call pes_mask_fullmap(mask, st, ik, pesK)
+      end if
+
+      ! only the root node of the domain and state parallelization group writes the output
+      if(mpi_grp_is_root(st%dom_st_mpi_grp)) then
+        ! Output the full matrix in binary format for subsequent post-processing
+        if(st%d%nik == 1) then
+        write(fn, '(a,a)') trim(dir), '_map.obf'
+        call io_binary_write(io_workpath(fn, namespace), &
+          mask%fs_n_global(1)*mask%fs_n_global(2)*mask%fs_n_global(3), pesK, ierr)
+
+
+        ! Total power spectrum
+        write(fn, '(a,a)') trim(dir), '_power.sum'
+        call pes_mask_output_power_totalM(pesK,fn, namespace, mask%Lk, mask%ll, mask%mesh%sb%dim, &
+                                        mask%energyMax, mask%energyStep, .false.)
+        end if
+
+        ! Output the p resolved PES on plane pz=0
+        if(st%d%nik > 1) then
+          write(fn, '(a,a,i3.3,a)') trim(dir), '_map-k',ik ,'.pz=0'
+        else
+          write(fn, '(a,a)') trim(dir), '_map.pz=0'
+        end if
+        pol = (/M_ZERO, M_ZERO, M_ONE/)
+        call pes_mask_output_full_mapM_cut(pesK, fn, namespace, mask%ll, mask%mesh%sb%dim, &
+          pol = pol, dir = 3, integrate = INTEGRATE_NONE, Lk = mask%Lk)
+
+      end if
     end do
 
-    SAFE_DEALLOCATE_A(psi)
-
-    call zcube_function_free_RS(mask%cube, cf1)
-    call  cube_function_free_FS(mask%cube, cf1)
-  end if 
-
-  !Create the full momentum-resolved PES matrix
-  pesK = M_ZERO
-  ! This loop over kpoints should not be reached since for periodic systems 
-  ! this part is skipped. I keep this here for the moment just for the debug purposes.
-  do ik = st%d%kpt%start, st%d%kpt%end
-
-    if(mask%add_psia) then 
-      call pes_mask_fullmap(mask, st, ik, pesK, wfAk)
-    else 
-      call pes_mask_fullmap(mask, st, ik, pesK)
-    end if
-    
-    ! only the root node of the domain and state parallelization group writes the output
-    if(mpi_grp_is_root(st%dom_st_mpi_grp)) then 
-      ! Output the full matrix in binary format for subsequent post-processing 
-      if(st%d%nik == 1) then
-      write(fn, '(a,a)') trim(dir), '_map.obf'
-      call io_binary_write(io_workpath(fn, namespace), &
-        mask%fs_n_global(1)*mask%fs_n_global(2)*mask%fs_n_global(3), pesK, ierr)
-                           
-         
-      ! Total power spectrum 
-      write(fn, '(a,a)') trim(dir), '_power.sum'
-      call pes_mask_output_power_totalM(pesK,fn, namespace, mask%Lk, mask%ll, mask%mesh%sb%dim, & 
-                                       mask%energyMax, mask%energyStep, .false.)
-      end if
-
-      ! Output the p resolved PES on plane pz=0
-      if(st%d%nik > 1) then
-        write(fn, '(a,a,i3.3,a)') trim(dir), '_map-k',ik ,'.pz=0'
-      else
-        write(fn, '(a,a)') trim(dir), '_map.pz=0'
-      end if
-      pol = (/M_ZERO, M_ZERO, M_ONE/)
-      call pes_mask_output_full_mapM_cut(pesK, fn, namespace, mask%ll, mask%mesh%sb%dim, &
-        pol = pol, dir = 3, integrate = INTEGRATE_NONE, Lk = mask%Lk)
-                                     
+    if(mask%add_psia) then
+      SAFE_DEALLOCATE_A(wfAk)
     end if
   end do
-
-  if(mask%add_psia) then 
-    SAFE_DEALLOCATE_A(wfAk)
-  end if
 
   call profiling_out(prof)
   

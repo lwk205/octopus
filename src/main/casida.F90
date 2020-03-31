@@ -176,7 +176,7 @@ contains
 
     type(casida_t) :: cas
     type(block_t) :: blk
-    integer :: idir, theorylevel, iatom, ierr
+    integer :: idir, theorylevel, iatom, ierr, iout
     character(len=100) :: restart_filename
     type(profile_t), save :: prof
     logical :: is_frac_occ
@@ -298,7 +298,11 @@ contains
     !%End
     call parse_variable(sys%namespace, 'CasidaTransitionDensities', "0", cas%trandens)
 
-    if(cas%trandens /= "0") call io_function_read_how(sys%gr%sb, sys%namespace, sys%outp%how)
+    if(cas%trandens /= "0") then
+      do iout = 1, size(sys%outp%what)
+        call io_function_read_how(sys%gr%sb, sys%namespace, sys%outp%how(iout))
+      end do
+    end if
 
     !%Variable CasidaMomentumTransfer
     !%Type block

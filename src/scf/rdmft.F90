@@ -289,7 +289,7 @@ contains
     type(restart_t),          intent(in)    :: restart_dump
 
     type(states_elec_t) :: states_save
-    integer :: iter, icount, ip, ist, ierr, maxcount, iorb
+    integer :: iter, icount, ip, ist, ierr, maxcount, iorb, iout
     FLOAT :: energy, energy_dif, energy_old, energy_occ, xpos, xneg, rel_ener
     FLOAT, allocatable :: dpsi(:,:), dpsi2(:,:)
     logical :: conv
@@ -443,13 +443,15 @@ contains
         
       endif
 
-      ! write output for iterations if requested
-      if (outp%what/=0 .and. outp%duringscf .and. outp%output_interval /= 0 &
-        .and. mod(iter, outp%output_interval) == 0) then
-        write(dirname,'(a,a,i4.4)') trim(outp%iter_dir), "scf.", iter
-        call output_all(outp, namespace, dirname, gr, geo, st, hm, ks)
-        call scf_write_static(dirname, "info")
-      end if
+      do iout = 1, size(outp%what)
+        ! write output for iterations if requested
+        if (outp%what(iout) /= 0 .and. outp%duringscf .and. outp%output_interval /= 0 &
+          .and. mod(iter, outp%output_interval) == 0) then
+          write(dirname,'(a,a,i4.4)') trim(outp%iter_dir), "scf.", iter
+          call output_all(outp, namespace, dirname, gr, geo, st, hm, ks)
+          call scf_write_static(dirname, "info")
+        end if
+      end do
 
       if (conv) exit
     end do 

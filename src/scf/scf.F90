@@ -537,7 +537,7 @@ contains
     type(restart_t), optional, intent(in)    :: restart_dump
 
     logical :: finish, gs_run_, berry_conv
-    integer :: iter, is, iatom, nspin, ierr, iberry, idir, verbosity_, ib, iqn
+    integer :: iter, is, iatom, nspin, ierr, iberry, idir, verbosity_, ib, iqn, iout
     FLOAT :: evsum_out, evsum_in, forcetmp, dipole(MAX_DIM), dipole_prev(MAX_DIM)
     FLOAT :: etime, itime
     character(len=MAX_PATH_LEN) :: dirname
@@ -637,13 +637,15 @@ contains
 
     rhoin(1:gr%fine%mesh%np, 1, 1:nspin) = st%rho(1:gr%fine%mesh%np, 1:nspin)
     rhoout = M_ZERO
-
-    !We store the Hxc potential for the contribution to the forces
-    if(scf%calc_force .or. scf%conv_abs_force > M_ZERO &
-        .or. (outp%duringscf .and. bitand(outp%what, OPTION__OUTPUT__FORCES) /= 0)) then
-      SAFE_ALLOCATE(vhxc_old(1:gr%mesh%np, 1:nspin))
-      vhxc_old(1:gr%mesh%np, 1:nspin) = hm%vhxc(1:gr%mesh%np, 1:nspin)
-    end if
+    do iout = 1, size(outp%what)
+      !We store the Hxc potential for the contribution to the forces
+      if(scf%calc_force .or. scf%conv_abs_force > M_ZERO &
+          .or. (outp%duringscf .and. bitand(outp%what(iout), OPTION__OUTPUT__FORCES) /= 0)) then
+        SAFE_ALLOCATE(vhxc_old(1:gr%mesh%np, 1:nspin))
+        vhxc_old(1:gr%mesh%np, 1:nspin) = hm%vhxc(1:gr%mesh%np, 1:nspin)
+        exit
+      end if
+    end do
     
 
     select case(scf%mix_field)
@@ -709,10 +711,12 @@ contains
 
       scf%energy_diff = hm%energy%total
 
-      !Used for the contribution to the forces
-      if(scf%calc_force .or. scf%conv_abs_force > M_ZERO .or. &
-          (outp%duringscf .and. bitand(outp%what, OPTION__OUTPUT__FORCES) /= 0)) & 
-        vhxc_old(1:gr%mesh%np, 1:nspin) = hm%vhxc(1:gr%mesh%np, 1:nspin)
+      do iout = 1, size(outp%what)
+        !Used for the contribution to the forces
+        if(scf%calc_force .or. scf%conv_abs_force > M_ZERO .or. &
+            (outp%duringscf .and. bitand(outp%what(iout), OPTION__OUTPUT__FORCES) /= 0)) & 
+          vhxc_old(1:gr%mesh%np, 1:nspin) = hm%vhxc(1:gr%mesh%np, 1:nspin)
+      end do
       
       if(scf%lcao_restricted) then
         call lcao_init_orbitals(lcao, st, gr, geo)
@@ -800,10 +804,12 @@ contains
           end if
         end do
       else
-        if(outp%duringscf .and. bitand(outp%what, OPTION__OUTPUT__FORCES) /= 0 &
-           .and. outp%output_interval /= 0 &
-           .and. gs_run_ .and. mod(iter, outp%output_interval) == 0)  &
-          call forces_calculate(gr, namespace, geo, hm, st, ks, vhxc_old=vhxc_old)
+        do iout = 1, size(outp%what)
+          if(outp%duringscf .and. bitand(outp%what(iout), OPTION__OUTPUT__FORCES) /= 0 &
+            .and. outp%output_interval /= 0 &
+            .and. gs_run_ .and. mod(iter, outp%output_interval) == 0)  &
+            call forces_calculate(gr, namespace, geo, hm, st, ks, vhxc_old=vhxc_old)
+        end do
       end if
 
       if(abs(st%qtot) <= M_EPSILON) then
@@ -947,11 +953,13 @@ contains
         exit
       end if
 
-      if((outp%what+outp%what_lda_u+outp%whatBZ)/=0 .and. outp%duringscf .and. outp%output_interval /= 0 &
-        .and. gs_run_ .and. mod(iter, outp%output_interval) == 0) then
-        write(dirname,'(a,a,i4.4)') trim(outp%iter_dir),"scf.",iter
-        call output_all(outp, namespace, dirname, gr, geo, st, hm, ks)
-      end if
+      do iout = 1, size(outp%what)
+        if((outp%what(iout)+outp%what_lda_u+outp%whatBZ)/=0 .and. outp%duringscf .and. outp%output_interval /= 0 &
+          .and. gs_run_ .and. mod(iter, outp%output_interval) == 0) then
+          write(dirname,'(a,a,i4.4)') trim(outp%iter_dir),"scf.",iter
+          call output_all(outp, namespace, dirname, gr, geo, st, hm, ks)
+        end if
+      end do
 
       ! save information for the next iteration
       rhoin(1:gr%fine%mesh%np, 1, 1:nspin) = st%rho(1:gr%fine%mesh%np, 1:nspin)

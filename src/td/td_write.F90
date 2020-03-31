@@ -174,7 +174,7 @@ contains
     type(multicomm_t),        intent(in)    :: mc
 
     FLOAT :: rmin
-    integer :: ierr, first, ii, ist, jj, flags, iout, default
+    integer :: ierr, first, ii, ist, jj, flags, iout, default, iout
     type(block_t) :: blk
     character(len=100) :: filename
     type(restart_t) :: restart_gs
@@ -695,7 +695,9 @@ contains
       call io_mkdir(outp%iter_dir, namespace)
     end if
 
-    if(outp%how == 0 .and. writ%out(OUT_N_EX)%write) call io_function_read_how(gr%sb, namespace, outp%how)
+    do iout = 1, size(outp%what)
+      if(outp%how(iout) == 0 .and. writ%out(OUT_N_EX)%write) call io_function_read_how(gr%sb, namespace, outp%how(iout))
+    end do
 
     !%Variable TDOutputDFTU
     !%Type flag
@@ -2398,7 +2400,7 @@ contains
 
     CMPLX, allocatable :: projections(:,:)
     character(len=80) :: aux, dir
-    integer :: ik, ikpt, ist, uist, err
+    integer :: ik, ikpt, ist, uist, err, iout
     FLOAT :: Nex, weight
     integer :: gs_nst
     FLOAT, allocatable :: Nex_kpt(:)
@@ -2484,8 +2486,10 @@ contains
  
   ! now write down the k-resolved part
   write(dir, '(a,a,i7.7)') trim(outp%iter_dir),"td.", iter  ! name of directory
-  call io_function_output_global_BZ(outp%how, dir, "n_excited_el_kpt", namespace, &
-    gr%mesh, Nex_kpt, unit_one, err) 
+  do iout = 1, size(outp%what)
+    call io_function_output_global_BZ(outp%how(iout), dir, "n_excited_el_kpt", namespace, &
+      gr%mesh, Nex_kpt, unit_one, err)
+  end do
  
   SAFE_DEALLOCATE_A(projections)
   SAFE_DEALLOCATE_A(Nex_kpt)

@@ -291,7 +291,7 @@ contains
     character(len=*),  intent(inout) :: ref_folder     !< Reference folder name
 
     type(restart_t)          :: restart
-    integer                  :: ierr, ii, folder_index
+    integer                  :: ierr, ii, folder_index, iout
     character(MAX_PATH_LEN)  :: filename, out_name, folder, frmt, restart_folder
     FLOAT, allocatable       :: read_ff(:), read_rff(:), pot(:)
 
@@ -374,16 +374,20 @@ contains
         read_ff(:) = read_ff(:) - read_rff(:) 
         write(out_name, '(a,a)') trim(out_name),"-ref"
       end if
-      ! Write the corresponding output
-      call dio_function_output(outp%how, trim(restart_folder)//trim(folder), & 
-           trim(out_name), namespace, mesh, read_ff, units_out%length**(-mesh%sb%dim), ierr, geo = geo)
-      
-      if (bitand(outp%what, OPTION__OUTPUT__POTENTIAL) /= 0) then
-        write(out_name, '(a)') "potential"
-        call dpoisson_solve(psolver, pot, read_ff)
-        call dio_function_output(outp%how, trim(restart_folder)//trim(folder), &
-             trim(out_name), namespace, mesh, pot, units_out%energy, ierr, geo = geo)
-      end if
+
+      do iout = 1, size(outp%what)
+        ! Write the corresponding output
+        call dio_function_output(outp%how(iout), trim(restart_folder)//trim(folder), & 
+            trim(out_name), namespace, mesh, read_ff, units_out%length**(-mesh%sb%dim), ierr, geo = geo)
+
+        if (bitand(outp%what(iout), OPTION__OUTPUT__POTENTIAL) /= 0) then
+          write(out_name, '(a)') "potential"
+          call dpoisson_solve(psolver, pot, read_ff)
+          call dio_function_output(outp%how(iout), trim(restart_folder)//trim(folder), &
+              trim(out_name), namespace, mesh, pot, units_out%energy, ierr, geo = geo)
+        end if
+      end do
+
       call loct_progress_bar(ii-c_start, c_end-c_start) 
       ! It does not matter if the current write has failed for the next iteration
       ierr = 0
@@ -418,7 +422,7 @@ contains
     integer                 :: ierr, i_space, i_time, nn(1:3), optimize_parity(1:3), wd_info
     integer                 :: i_energy, e_end, e_start, e_point, chunk_size, read_count, t_point
     logical                 :: optimize(1:3)
-    integer                 :: folder_index
+    integer                 :: folder_index, iout
     character(MAX_PATH_LEN) :: filename, folder, restart_folder
     FLOAT                   :: fdefault, w_max
     FLOAT, allocatable      :: read_ft(:), read_rff(:), point_tmp(:,:)
@@ -718,26 +722,28 @@ contains
     call MPI_Barrier(mesh%mpi_grp%comm, mpi_err)
 #endif
 
-    if(mesh%parallel_in_domains) then
-      do i_energy = e_start, e_end
-        write(filename,'(a14,i0.7,a1)')'wd.general/wd.',i_energy,'/'
-        call dio_function_output(outp%how, trim(filename), & 
-           trim('density'), namespace, mesh, point_tmp(:, i_energy), &
-           units_out%length**(-mesh%sb%dim), ierr, geo = geo)
-      end do
-      call restart_end(restart)
-    else
-      ! write the output files
-      if (outp%how /= OPTION__OUTPUTFORMAT__BINARY ) then
+    do iout = 1, size(outp%what)
+      if(mesh%parallel_in_domains) then
         do i_energy = e_start, e_end
           write(filename,'(a14,i0.7,a1)')'wd.general/wd.',i_energy,'/'
-          call io_binary_read(trim(filename)//'density.obf', mesh%np, read_rff, ierr)
-          call dio_function_output(outp%how, trim(filename), & 
-             trim('density'), namespace, mesh, read_rff, &
-             units_out%length**(-mesh%sb%dim), ierr, geo = geo)
+          call dio_function_output(outp%how(iout), trim(filename), & 
+            trim('density'), namespace, mesh, point_tmp(:, i_energy), &
+            units_out%length**(-mesh%sb%dim), ierr, geo = geo)
         end do
+        call restart_end(restart)
+      else
+        ! write the output files
+        if (outp%how(iout) /= OPTION__OUTPUTFORMAT__BINARY ) then
+          do i_energy = e_start, e_end
+            write(filename,'(a14,i0.7,a1)')'wd.general/wd.',i_energy,'/'
+            call io_binary_read(trim(filename)//'density.obf', mesh%np, read_rff, ierr)
+            call dio_function_output(outp%how(iout), trim(filename), & 
+              trim('density'), namespace, mesh, read_rff, &
+              units_out%length**(-mesh%sb%dim), ierr, geo = geo)
+          end do
+        end if
       end if
-    end if
+    end do
     
     SAFE_DEALLOCATE_A(point_tmp)
     SAFE_DEALLOCATE_A(read_ft)
@@ -764,7 +770,7 @@ contains
     type(multicomm_t), intent(in)   :: mc
     type(output_t)  ,  intent(in)    :: outp           !< Output object; Decides the kind, what and where to output
 
-    integer             :: ierr, ip, i_op, length, n_operations
+    integer             :: ierr, ip, i_op, length, n_operations, iout
     type(block_t)       :: blk
     type(restart_t)     :: restart 
     type(unit_t)        :: units
@@ -870,9 +876,10 @@ contains
     !TODO: add variable ConvertFunctionType to select the type(density, wfs, potential, ...) 
     !      and units of the conversion.
     units = units_out%length**(-mesh%sb%dim)
-    call dio_function_output(outp%how, trim(out_folder), trim(out_filename), namespace, mesh, & 
-      scalar_ff, units, ierr, geo = geo)
-
+    do iout = 1, size(outp%what)
+      call dio_function_output(outp%how(iout), trim(out_folder), trim(out_filename), namespace, mesh, & 
+        scalar_ff, units, ierr, geo = geo)
+    end do
     SAFE_DEALLOCATE_A(tmp_ff)
     SAFE_DEALLOCATE_A(scalar_ff)
 

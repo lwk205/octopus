@@ -634,14 +634,14 @@ contains
 
 
   ! ---------------------------------------------------------
-  subroutine write_iter_info(geom_iter, size, energy, maxdx, maxdf, coords)
+  subroutine write_iter_info(geom_iter, coords_size, energy, maxdx, maxdf, coords)
     integer,     intent(in) :: geom_iter
-    integer,     intent(in) :: size !< must equal dim * natoms
+    integer,     intent(in) :: coords_size !< must equal dim * natoms
     REAL_DOUBLE, intent(in) :: energy, maxdx, maxdf
-    REAL_DOUBLE, intent(in) :: coords(size)
+    REAL_DOUBLE, intent(in) :: coords(coords_size)
 
     character(len=256) :: c_geom_iter, title, c_forces_iter
-    integer :: iunit
+    integer :: iunit, iout
 
     PUSH_SUB(write_iter_info)
     
@@ -651,16 +651,18 @@ contains
     call geometry_write_xyz(g_opt%geo, 'geom/'//trim(c_geom_iter), g_opt%syst%namespace, comment = trim(title))
     call geometry_write_xyz(g_opt%geo, './last', g_opt%syst%namespace)
 
-    if(bitand(g_opt%syst%outp%what, OPTION__OUTPUT__FORCES) /= 0) then
-    write(c_forces_iter, '(a,i4.4)') "forces.", geom_iter
-      if(bitand(g_opt%syst%outp%how, OPTION__OUTPUTFORMAT__BILD) /= 0) then
-        call write_bild_forces_file('forces', trim(c_forces_iter), g_opt%geo, g_opt%syst%gr%mesh, &
-          g_opt%syst%namespace)
-      else
-        call write_xsf_geometry_file('forces', trim(c_forces_iter), g_opt%geo, g_opt%syst%gr%mesh, &
-          g_opt%syst%namespace, write_forces = .true.)
+    do iout = 1, size(g_opt%syst%outp%what)
+      if(bitand(g_opt%syst%outp%what(iout), OPTION__OUTPUT__FORCES) /= 0) then
+      write(c_forces_iter, '(a,i4.4)') "forces.", geom_iter
+        if(bitand(g_opt%syst%outp%how(iout), OPTION__OUTPUTFORMAT__BILD) /= 0) then
+          call write_bild_forces_file('forces', trim(c_forces_iter), g_opt%geo, g_opt%syst%gr%mesh, &
+            g_opt%syst%namespace)
+        else
+          call write_xsf_geometry_file('forces', trim(c_forces_iter), g_opt%geo, g_opt%syst%gr%mesh, &
+            g_opt%syst%namespace, write_forces = .true.)
+        end if
       end if
-    end if
+    end do
 
     call from_coords(g_opt, coords)
 

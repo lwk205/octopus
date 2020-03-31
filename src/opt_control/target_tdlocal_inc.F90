@@ -77,15 +77,17 @@
     type(geometry_t),  intent(in)    :: geo
     type(output_t),    intent(in)    :: outp
 
-    integer :: ierr
+    integer :: ierr, iout
     PUSH_SUB(target_output_tdlocal)
     
     call io_mkdir(trim(dir), namespace)
     call target_build_tdlocal(tg, gr, M_ZERO)
-    if(outp%how /= 0) then
-      call dio_function_output(outp%how, trim(dir), 'td_local_target', namespace, gr%mesh, &
-        tg%rho, units_out%length**(-gr%sb%dim), ierr, geo = geo)
-    end if
+    do iout = 1, size(outp%what)
+      if(outp%how(iout) /= 0) then
+        call dio_function_output(outp%how(iout), trim(dir), 'td_local_target', namespace, gr%mesh, &
+          tg%rho, units_out%length**(-gr%sb%dim), ierr, geo = geo)
+      end if
+    end do
 
     POP_SUB(target_output_tdlocal)
   end subroutine target_output_tdlocal

@@ -29,7 +29,7 @@ subroutine X(output_lr) (outp, namespace, dir, st, gr, lr, idir, isigma, geo, pe
   type(geometry_t),     intent(in) :: geo
   type(unit_t),         intent(in) :: pert_unit !< unit for perturbation
 
-  integer :: ik, ist, idim, ierr, is, idir2
+  integer :: ik, ist, idim, ierr, is, idir2, iout
   character(len=80) :: fname
   type(unit_t) :: fn_unit
   FLOAT, allocatable :: dtmp(:)
@@ -44,133 +44,134 @@ subroutine X(output_lr) (outp, namespace, dir, st, gr, lr, idir, isigma, geo, pe
     sigma = '-'
   end if
 
-  if(isigma == 1) then ! the density, current, etc. are only defined for the + frequency
+  do iout = 1, size(outp%what)
+    if(isigma == 1) then ! the density, current, etc. are only defined for the + frequency
 
-    if(bitand(outp%what, OPTION__OUTPUT__DENSITY) /= 0) then
-      fn_unit = units_out%length**(-gr%mesh%sb%dim)
-      do is = 1, st%d%nspin
-        if(st%d%nspin == 1) then
-          write(fname, '(2a)') 'lr_density-', index2axis(idir)
-        else
-          write(fname, '(a,i1,2a)') 'lr_density-sp', is, '-', index2axis(idir)
-        end if
-        call X(io_function_output)(outp%how, dir, fname, namespace, gr%mesh, lr%X(dl_rho)(:, is), &
-          fn_unit / pert_unit, ierr, geo = geo)
-      end do
-    end if
-
-    if(bitand(outp%what, OPTION__OUTPUT__POL_DENSITY) /= 0) then
-      fn_unit = units_out%length**(1 - gr%mesh%sb%dim)
-      SAFE_ALLOCATE(tmp(1:gr%mesh%np))
-      do is = 1, st%d%nspin
-        do idir2 = 1, gr%mesh%sb%dim
-          tmp(1:gr%mesh%np) = -gr%mesh%x(1:gr%mesh%np, idir2) * lr%X(dl_rho)(:, is)
+      if(bitand(outp%what(iout), OPTION__OUTPUT__DENSITY) /= 0) then
+        fn_unit = units_out%length**(-gr%mesh%sb%dim)
+        do is = 1, st%d%nspin
           if(st%d%nspin == 1) then
-            write(fname, '(4a)') 'alpha_density-', index2axis(idir2), '-', index2axis(idir)
+            write(fname, '(2a)') 'lr_density-', index2axis(idir)
           else
-            write(fname, '(a,i1,4a)') 'alpha_density-sp', is, '-', index2axis(idir2), '-', index2axis(idir)
+            write(fname, '(a,i1,2a)') 'lr_density-sp', is, '-', index2axis(idir)
           end if
-          call X(io_function_output)(outp%how, dir, fname, namespace, &
-            gr%mesh, tmp, fn_unit / pert_unit, ierr, geo = geo)
+          call X(io_function_output)(outp%how(iout), dir, fname, namespace, gr%mesh, lr%X(dl_rho)(:, is), &
+            fn_unit / pert_unit, ierr, geo = geo)
         end do
-      end do
-      SAFE_DEALLOCATE_A(tmp)
-    end if
+      end if
 
-    if(bitand(outp%what, OPTION__OUTPUT__CURRENT) /= 0) then
-      if(states_are_complex(st)) then
-        fn_unit = units_out%time**(-1) * units_out%length**(-gr%mesh%sb%dim)
+      if(bitand(outp%what(iout), OPTION__OUTPUT__POL_DENSITY) /= 0) then
+        fn_unit = units_out%length**(1 - gr%mesh%sb%dim)
+        SAFE_ALLOCATE(tmp(1:gr%mesh%np))
         do is = 1, st%d%nspin
           do idir2 = 1, gr%mesh%sb%dim
+            tmp(1:gr%mesh%np) = -gr%mesh%x(1:gr%mesh%np, idir2) * lr%X(dl_rho)(:, is)
             if(st%d%nspin == 1) then
-              write(fname, '(4a)') 'lr_current-', index2axis(idir2), '-',  index2axis(idir)
+              write(fname, '(4a)') 'alpha_density-', index2axis(idir2), '-', index2axis(idir)
             else
-              write(fname, '(a,i1,4a)') 'lr_current-sp', is, '-', index2axis(idir2), '-',  index2axis(idir)
+              write(fname, '(a,i1,4a)') 'alpha_density-sp', is, '-', index2axis(idir2), '-', index2axis(idir)
             end if
-            call zio_function_output(outp%how, dir, fname, namespace, &
-              gr%mesh, lr%dl_j(:, idir2, is), &
-              fn_unit / pert_unit, ierr, geo = geo)
+            call X(io_function_output)(outp%how(iout), dir, fname, namespace, &
+              gr%mesh, tmp, fn_unit / pert_unit, ierr, geo = geo)
           end do
         end do
-      else
-        message(1) = 'No current density output for real states since it is identically zero.'
-        call messages_warning(1, namespace=namespace)
+        SAFE_DEALLOCATE_A(tmp)
       end if
+
+      if(bitand(outp%what(iout), OPTION__OUTPUT__CURRENT) /= 0) then
+        if(states_are_complex(st)) then
+          fn_unit = units_out%time**(-1) * units_out%length**(-gr%mesh%sb%dim)
+          do is = 1, st%d%nspin
+            do idir2 = 1, gr%mesh%sb%dim
+              if(st%d%nspin == 1) then
+                write(fname, '(4a)') 'lr_current-', index2axis(idir2), '-',  index2axis(idir)
+              else
+                write(fname, '(a,i1,4a)') 'lr_current-sp', is, '-', index2axis(idir2), '-',  index2axis(idir)
+              end if
+              call zio_function_output(outp%how(iout), dir, fname, namespace, &
+                gr%mesh, lr%dl_j(:, idir2, is), &
+                fn_unit / pert_unit, ierr, geo = geo)
+            end do
+          end do
+        else
+          message(1) = 'No current density output for real states since it is identically zero.'
+          call messages_warning(1, namespace=namespace)
+        end if
+      end if
+
+      if(gr%mesh%sb%dim==3) then
+        if(bitand(outp%what(iout), OPTION__OUTPUT__ELF) /= 0) call lr_elf('lr_elf_D','lr_elf')
+      end if
+
+    end if ! isigma == 1
+
+
+    if(bitand(outp%what(iout), OPTION__OUTPUT__WFS) /= 0) then
+      fn_unit = sqrt(units_out%length**(-gr%mesh%sb%dim))
+      do ist = st%st_start, st%st_end
+        if(loct_isinstringlist(ist, outp%wfs_list)) then
+          do ik = st%d%kpt%start, st%d%kpt%end
+            do idim = 1, st%d%dim
+              if(st%d%nik > 1) then
+                if(st%d%dim > 1) then
+                  write(fname, '(a,i3.3,a,i3.3,a,i1,3a)') &
+                    'lr_wf-k', ik, '-st', ist, '-sp', idim, '-', index2axis(idir), sigma
+                else
+                  write(fname, '(a,i3.3,a,i3.3,3a)') &
+                    'lr_wf-k', ik, '-st', ist, '-', index2axis(idir), sigma
+                end if
+              else
+                if(st%d%dim > 1) then
+                  write(fname, '(a,i3.3,a,i1,3a)') &
+                    'lr_wf-st', ist, '-sp', idim, '-', index2axis(idir), sigma
+                else
+                  write(fname, '(a,i3.3,3a)') &
+                    'lr_wf-st', ist, '-', index2axis(idir), sigma
+                end if
+              end if
+              call X(io_function_output) (outp%how(iout), dir, fname, namespace, gr%mesh, &
+                lr%X(dl_psi) (1:, idim, ist, ik), fn_unit  / pert_unit, ierr, geo = geo)
+            end do
+          end do
+        end if
+      end do
     end if
 
-    if(gr%mesh%sb%dim==3) then
-      if(bitand(outp%what, OPTION__OUTPUT__ELF) /= 0) call lr_elf('lr_elf_D','lr_elf')
+    if(bitand(outp%what(iout), OPTION__OUTPUT__WFS_SQMOD) /= 0) then
+      fn_unit = units_out%length**(-gr%mesh%sb%dim)
+      SAFE_ALLOCATE(dtmp(1:gr%mesh%np_part))
+      do ist = st%st_start, st%st_end
+        if(loct_isinstringlist(ist, outp%wfs_list)) then
+          do ik = st%d%kpt%start, st%d%kpt%end
+            do idim = 1, st%d%dim
+              if(st%d%nik > 1) then
+                if(st%d%dim > 1) then
+                  write(fname, '(a,i3.3,a,i3.3,a,i1,3a)') &
+                    'sqm_lr_wf-k', ik, '-st', ist, '-sp', idim, '-', index2axis(idir), sigma
+                else
+                  write(fname, '(a,i3.3,a,i3.3,3a)') &
+                    'sqm_lr_wf-k', ik, '-st', ist, '-', index2axis(idir), sigma
+                end if
+              else
+                if(st%d%dim > 1) then
+                  write(fname, '(a,i3.3,a,i1,3a)') &
+                    'sqm_lr_wf-st', ist, '-sp', idim, '-', index2axis(idir), sigma
+                else
+                  write(fname, '(a,i3.3,3a)') &
+                    'sqm_lr_wf-st', ist, '-', index2axis(idir), sigma
+                end if
+              end if
+
+              dtmp = abs(lr%X(dl_psi) (:, idim, ist, ik))**2
+              call dio_function_output (outp%how(iout), dir, fname, namespace, gr%mesh, dtmp, &
+                fn_unit / pert_unit, ierr, geo = geo)
+            end do
+          end do
+        end if
+      end do
+      SAFE_DEALLOCATE_A(dtmp)
     end if
-
-  end if ! isigma == 1
-
-
-  if(bitand(outp%what, OPTION__OUTPUT__WFS) /= 0) then
-    fn_unit = sqrt(units_out%length**(-gr%mesh%sb%dim))
-    do ist = st%st_start, st%st_end
-      if(loct_isinstringlist(ist, outp%wfs_list)) then
-        do ik = st%d%kpt%start, st%d%kpt%end
-          do idim = 1, st%d%dim
-            if(st%d%nik > 1) then
-              if(st%d%dim > 1) then
-                write(fname, '(a,i3.3,a,i3.3,a,i1,3a)') &
-                  'lr_wf-k', ik, '-st', ist, '-sp', idim, '-', index2axis(idir), sigma
-              else
-                write(fname, '(a,i3.3,a,i3.3,3a)') &
-                  'lr_wf-k', ik, '-st', ist, '-', index2axis(idir), sigma
-              end if
-            else
-              if(st%d%dim > 1) then
-                write(fname, '(a,i3.3,a,i1,3a)') &
-                  'lr_wf-st', ist, '-sp', idim, '-', index2axis(idir), sigma
-              else
-                write(fname, '(a,i3.3,3a)') &
-                  'lr_wf-st', ist, '-', index2axis(idir), sigma
-              end if
-            end if
-            call X(io_function_output) (outp%how, dir, fname, namespace, gr%mesh, &
-              lr%X(dl_psi) (1:, idim, ist, ik), fn_unit  / pert_unit, ierr, geo = geo)
-          end do
-        end do
-      end if
-    end do
-  end if
-
-  if(bitand(outp%what, OPTION__OUTPUT__WFS_SQMOD) /= 0) then
-    fn_unit = units_out%length**(-gr%mesh%sb%dim)
-    SAFE_ALLOCATE(dtmp(1:gr%mesh%np_part))
-    do ist = st%st_start, st%st_end
-      if(loct_isinstringlist(ist, outp%wfs_list)) then
-        do ik = st%d%kpt%start, st%d%kpt%end
-          do idim = 1, st%d%dim
-            if(st%d%nik > 1) then
-              if(st%d%dim > 1) then
-                write(fname, '(a,i3.3,a,i3.3,a,i1,3a)') &
-                  'sqm_lr_wf-k', ik, '-st', ist, '-sp', idim, '-', index2axis(idir), sigma
-              else
-                write(fname, '(a,i3.3,a,i3.3,3a)') &
-                  'sqm_lr_wf-k', ik, '-st', ist, '-', index2axis(idir), sigma
-              end if
-            else
-              if(st%d%dim > 1) then
-                write(fname, '(a,i3.3,a,i1,3a)') &
-                  'sqm_lr_wf-st', ist, '-sp', idim, '-', index2axis(idir), sigma
-              else
-                write(fname, '(a,i3.3,3a)') &
-                  'sqm_lr_wf-st', ist, '-', index2axis(idir), sigma
-              end if
-            end if
-
-            dtmp = abs(lr%X(dl_psi) (:, idim, ist, ik))**2
-            call dio_function_output (outp%how, dir, fname, namespace, gr%mesh, dtmp, &
-              fn_unit / pert_unit, ierr, geo = geo)
-          end do
-        end do
-      end if
-    end do
-    SAFE_DEALLOCATE_A(dtmp)
-  end if
-
+  end do
 POP_SUB(X(output_lr))
 
 contains
@@ -180,29 +181,31 @@ contains
     character(len=*), intent(in) :: filename1
     character(len=*), intent(in) :: filename2
     
-    integer :: is, ierr
+    integer :: is, ierr, iout
 
     PUSH_SUB(X(output_lr).lr_elf)
 
-    ! these quantities are dimensionless, before the perturbation
-    do is = 1, st%d%nspin
-      if(st%d%nspin == 1) then
-        write(fname, '(3a)') trim(filename1), '-', index2axis(idir)
-      else
-        write(fname, '(2a,i1,2a)') trim(filename1), '-sp', is, '-', index2axis(idir)
-      end if
-      call X(io_function_output)(outp%how, dir, trim(fname), namespace, &
-        gr%mesh, lr%X(dl_de)(1:gr%mesh%np,is), unit_one / pert_unit, ierr, geo = geo)
-    end do
+    do iout = 1, size(outp%how)
+      ! these quantities are dimensionless, before the perturbation
+      do is = 1, st%d%nspin
+        if(st%d%nspin == 1) then
+          write(fname, '(3a)') trim(filename1), '-', index2axis(idir)
+        else
+          write(fname, '(2a,i1,2a)') trim(filename1), '-sp', is, '-', index2axis(idir)
+        end if
+        call X(io_function_output)(outp%how(iout), dir, trim(fname), namespace, &
+          gr%mesh, lr%X(dl_de)(1:gr%mesh%np,is), unit_one / pert_unit, ierr, geo = geo)
+      end do
 
-    do is = 1, st%d%nspin
-      if(st%d%nspin == 1) then
-        write(fname, '(3a)') trim(filename2), '-', index2axis(idir)
-      else
-        write(fname, '(2a,i1,2a)') trim(filename2), '-sp', is, '-', index2axis(idir)
-      end if
-      call X(io_function_output)(outp%how, dir, trim(fname), namespace, &
-        gr%mesh, lr%X(dl_elf)(1:gr%mesh%np,is), unit_one / pert_unit, ierr, geo = geo)
+      do is = 1, st%d%nspin
+        if(st%d%nspin == 1) then
+          write(fname, '(3a)') trim(filename2), '-', index2axis(idir)
+        else
+          write(fname, '(2a,i1,2a)') trim(filename2), '-sp', is, '-', index2axis(idir)
+        end if
+        call X(io_function_output)(outp%how(iout), dir, trim(fname), namespace, &
+          gr%mesh, lr%X(dl_elf)(1:gr%mesh%np,is), unit_one / pert_unit, ierr, geo = geo)
+      end do
     end do
 
     POP_SUB(X(output_lr).lr_elf)
