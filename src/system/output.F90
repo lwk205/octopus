@@ -746,8 +746,6 @@ contains
         if(bitand(outp%how(iout), OPTION__OUTPUTFORMAT__VTK) /= 0) then
           call vtk_output_geometry(trim(dir)//'/geometry', geo, namespace)
         end if
-      end if     
-        end if
       end if
 
       if(bitand(outp%what(iout), OPTION__OUTPUT__FORCES) /= 0) then

@@ -447,8 +447,6 @@ contains
         if(bitand(sys%outp%what(iout), OPTION__OUTPUT__FORCES) /= 0) then
           call forces_calculate(gr, sys%namespace, geo, sys%hm, st, sys%ks, t = td%iter*td%dt, dt = td%dt)
         end if
-      end if  
-        end if
       end do
     end if
 
