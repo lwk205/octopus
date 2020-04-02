@@ -313,8 +313,7 @@ contains
         SAFE_ALLOCATE(outp%how(1:nrows))
         do iout = 1, nrows
           call parse_block_integer(blk, iout - 1, 0, outp%what(iout))
-          call parse_block_integer(blk, iout - 1, 1, outp%how(iout))
-          write(*,*) '#',outp%what(iout),outp%how(iout)
+          write(*,*) '***MFT*** # output:what',outp%what(iout)
         end do
       else if(ncols == 5) then
         !TODO: the format with separate output interval for each type must be implemented here
@@ -518,8 +517,6 @@ contains
       !%Section Output
       !%Description
       !% Specifies what to print, related to LDA+U.
-    !% Specifies what to print, related to LDA+U. 
-      !% Specifies what to print, related to LDA+U.
       !% The output files are written at the end of the run into the output directory for the
       !% relevant kind of run (<i>e.g.</i> <tt>static</tt> for <tt>CalculationMode = gs</tt>).
       !% Time-dependent simulations print only per iteration, including always the last. The frequency of output per iteration
@@ -535,22 +532,14 @@ contains
       !% Outputs the occupation matrices of LDA+U
       !%Option effectiveU bit(1)
       !% Outputs the value of the effectiveU for each atoms
-    !% Outputs the value of the effectiveU for each atoms 
-      !% Outputs the value of the effectiveU for each atoms
       !%Option magnetization bit(2)
       !% Outputs file containing structure and magnetization of the localized subspace
-    !% Outputs file containing structure and magnetization of the localized subspace 
-      !% Outputs file containing structure and magnetization of the localized subspace
       !% on the atoms as a vector associated with each atom, which can be visualized.
-      !% For the moment, it only works if a +U is added on one type of orbital per atom.
-    !% For the moment, it only works if a +U is added on one type of orbital per atom. 
       !% For the moment, it only works if a +U is added on one type of orbital per atom.
       !%Option local_orbitals bit(3)
       !% Outputs the localized orbitals that form the correlated subspace
       !%Option kanamoriU bit(4)
       !% Outputs the Kanamori interaction parameters U, U`, and J.
-      !% These parameters are not determined self-consistently, but are taken from the
-    !% These parameters are not determined self-consistently, but are taken from the 
       !% These parameters are not determined self-consistently, but are taken from the
       !% occupation matrices and Coulomb integrals comming from a standard +U calculation.
       !%End
@@ -583,12 +572,8 @@ contains
       !%Section Output
       !%Description
       !% During <tt>gs</tt> and <tt>unocc</tt> runs, if this variable is set to yes,
-    !% During <tt>gs</tt> and <tt>unocc</tt> runs, if this variable is set to yes, 
-      !% During <tt>gs</tt> and <tt>unocc</tt> runs, if this variable is set to yes,
       !% output will be written after every <tt>OutputInterval</tt> iterations.
       !%End
-      call parse_variable(namespace, 'OutputDuringSCF', .false., outp%duringscf)
-    call parse_variable(namespace, 'OutputDuringSCF', .false., outp%duringscf) 
       call parse_variable(namespace, 'OutputDuringSCF', .false., outp%duringscf)
 
       !%Variable RestartWriteInterval
@@ -634,8 +619,6 @@ contains
       !% Outputs the current density resolved in momentum space. The output file is called <tt>current_kpt-</tt>.
       !%Option density_kpt bit(1)
       !% Outputs the electronic density resolved in momentum space.
-    !% Outputs the electronic density resolved in momentum space. 
-      !% Outputs the electronic density resolved in momentum space.
       !%End
       call parse_variable(namespace, 'Output_KPT', 0_8, outp%whatBZ)
 
@@ -644,9 +627,7 @@ contains
       end if
 
       if(bitand(outp%whatBZ, OPTION__OUTPUT_KPT__CURRENT_KPT) /= 0) then
-      call v_ks_calculate_current(ks, .true.)
-     call v_ks_calculate_current(ks, .true.) 
-      call v_ks_calculate_current(ks, .true.)
+        call v_ks_calculate_current(ks, .true.)
       end if
 
       !%Variable OutputIterDir
@@ -668,7 +649,7 @@ contains
 
       ! we are using a what that has a how.
       if(bitand(outp%what(iout), not(what_no_how)) /= 0 .or. outp%whatBZ /= 0 .or. bitand(outp%what_lda_u, not(what_no_how_u)) /= 0) then
-        call io_function_read_how(sb, namespace, outp%how(iout))
+        call io_function_read_how(sb, namespace, outp%how)
       else
         outp%how(iout) = 0
       end if

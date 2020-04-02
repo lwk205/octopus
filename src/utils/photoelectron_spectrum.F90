@@ -56,7 +56,7 @@ program photoelectron_spectrum
 
   integer              :: ierr, integrate
   integer              :: dim, dir, idim, pdim, ngpt
-  integer(8)           :: how
+  integer(8), pointer  :: how(:) => null() 
   integer              :: llp(3), llg(3)   !< The size of the g-point and p-point cubic grids 
   FLOAT                :: Emax, Emin, Estep, uEstep,uEspan(2), pol(3)
   FLOAT                :: uThstep, uThspan(2), uPhstep, uPhspan(2), pvec(3)
@@ -661,6 +661,8 @@ program photoelectron_spectrum
 
       end if
 
+      SAFE_ALLOCATE(how(1))
+
       if(bitand(pesout%what, OPTION__PHOTOELECTRONSPECTRUMOUTPUT__VELOCITY_MAP) /= 0) then
         
         call io_function_read_how(sb, default_namespace, how, ignore_error = .true.)
@@ -669,13 +671,13 @@ program photoelectron_spectrum
         filename = outfile('./PES_velocity_map', ist, ispin)
         if (need_pmesh) then
           !force vtk output
-          how = io_function_fill_how("VTK")
+          how(1) = io_function_fill_how("VTK")
            
 !           call pes_mask_output_full_mapM(pesP_out, filename, default_namespace, Lg, llp, how, sb, pmesh)
-          call pes_out_velocity_map(pesP_out, filename, default_namespace, Lg, llp, how, sb, pmesh)
+          call pes_out_velocity_map(pesP_out, filename, default_namespace, Lg, llp, how(1), sb, pmesh)
         else
 !           call pes_mask_output_full_mapM(pesP_out, filename, default_namespace, Lg, llp, how, sb)
-          call pes_out_velocity_map(pesP_out, filename, default_namespace, Lg, llp, how, sb)
+          call pes_out_velocity_map(pesP_out, filename, default_namespace, Lg, llp, how(1), sb)
         end if
         
       end if
@@ -688,10 +690,10 @@ program photoelectron_spectrum
             sign(M_ONE,pmesh(i1,i2,i3,dim)) * sum( pmesh(i1,i2,i3,1:dim)**2 )/M_TWO)
         end forall
 
-        how = io_function_fill_how("VTK")
+        how(1) = io_function_fill_how("VTK")
 
         call pes_out_velocity_map(pesP_out, outfile('./PES_ARPES', ist, ispin), &
-                                  default_namespace, Lg, llp, how, sb, pmesh)
+                                  default_namespace, Lg, llp, how(1), sb, pmesh)
       end if
       
       

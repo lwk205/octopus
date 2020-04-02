@@ -170,7 +170,7 @@
       outp%wfs_list = trim("1-3")
     end if
 
-    call io_function_read_how(sb, namespace, outp%how(1))
+    call io_function_read_how(sb, namespace, outp%how)
 
     POP_SUB(output_mxll_init)
   end subroutine output_mxll_init

@@ -1128,9 +1128,9 @@ contains
     type(geometry_t),       intent(in) :: geo
     type(states_elec_t),    intent(in) :: st
 
-    integer :: w90_u_mat, w90_xyz, nwann, nik
+    integer :: w90_u_mat, w90_xyz, nwann, nik, iout
     integer :: ik, iw, iw2, ip, ipmax
-    integer(8) :: how
+    integer(8), pointer :: how(:)
     FLOAT, allocatable :: centers(:,:), dwn(:)
     CMPLX, allocatable :: Umnk(:,:,:)
     CMPLX, allocatable :: zwn(:), psi(:,:)
@@ -1209,46 +1209,48 @@ contains
     SAFE_ALLOCATE(dwn(1:mesh%np))
     SAFE_ALLOCATE(psi(1:mesh%np, 1:st%d%dim))
 
-    do iw = 1, w90_num_wann
-      write(fname, '(a,i3.3)') 'wannier-', iw
+    do iout = 1, size(how)
+      do iw = 1, w90_num_wann
+        write(fname, '(a,i3.3)') 'wannier-', iw
 
-      zwn(:) = M_Z0
+        zwn(:) = M_Z0
 
-      do ik = 1, w90_num_kpts
-        !This will not work for spin-polarized calculations
-        kpoint(1:sb%dim) = kpoints_get_point(sb%kpoints, ik, absolute_coordinates=.true.)
+        do ik = 1, w90_num_kpts
+          !This will not work for spin-polarized calculations
+          kpoint(1:sb%dim) = kpoints_get_point(sb%kpoints, ik, absolute_coordinates=.true.)
 
-        do iw2 = 1, st%nst
-          if(exclude_list(iw2)) cycle
-          call states_elec_get_state(st, mesh, iw2, ik, psi)
-          !The minus sign is here is for the wrong convention of Octopus
-          forall(ip=1:mesh%np)
-            zwn(ip) = zwn(ip) + Umnk(band_index(iw2), iw, ik)/w90_num_kpts * psi(ip,1) * &
-                      exp(-M_zI* sum((mesh%x(ip, 1:sb%dim)-centers(1:sb%dim, iw)) * kpoint(1:sb%dim)))
-          end forall
-        end do!ik   
-      end do!iw2
+          do iw2 = 1, st%nst
+            if(exclude_list(iw2)) cycle
+            call states_elec_get_state(st, mesh, iw2, ik, psi)
+            !The minus sign is here is for the wrong convention of Octopus
+            forall(ip=1:mesh%np)
+              zwn(ip) = zwn(ip) + Umnk(band_index(iw2), iw, ik)/w90_num_kpts * psi(ip,1) * &
+                        exp(-M_zI* sum((mesh%x(ip, 1:sb%dim)-centers(1:sb%dim, iw)) * kpoint(1:sb%dim)))
+            end forall
+          end do!ik
+        end do!iw2
 
 
-      !Following what Wannier90 is doing, we fix the global phase by setting the max to be real
-      ipmax = 0
-      wmodmax = M_z0
-      do ip=1, mesh%np
-        wmod = TOFLOAT(zwn(ip)*conjg(zwn(ip)))
-        if(wmod > wmodmax) then
-          ipmax = ip
-          wmodmax = wmod
-        end if
+        !Following what Wannier90 is doing, we fix the global phase by setting the max to be real
+        ipmax = 0
+        wmodmax = M_z0
+        do ip=1, mesh%np
+          wmod = TOFLOAT(zwn(ip)*conjg(zwn(ip)))
+          if(wmod > wmodmax) then
+            ipmax = ip
+            wmodmax = wmod
+          end if
+        end do
+        call lalg_scal(mesh%np, sqrt(wmodmax)/zwn(ipmax), zwn)
+      
+
+        forall(ip=1:mesh%np)
+          dwn(ip) = TOFLOAT(zwn(ip))
+        end forall
+
+        call dio_function_output(how(iout), 'wannier', trim(fname), namespace, mesh, &
+            dwn,  unit_one, ierr, geo = geo, grp = st%dom_st_kpt_mpi_grp)
       end do
-      call lalg_scal(mesh%np, sqrt(wmodmax)/zwn(ipmax), zwn)
-     
-
-      forall(ip=1:mesh%np)
-        dwn(ip) = TOFLOAT(zwn(ip))
-      end forall
-        
-      call dio_function_output(how, 'wannier', trim(fname), namespace, mesh, &
-          dwn,  unit_one, ierr, geo = geo, grp = st%dom_st_kpt_mpi_grp)
     end do
 
     SAFE_DEALLOCATE_A(Umnk)

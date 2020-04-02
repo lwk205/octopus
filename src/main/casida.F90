@@ -299,9 +299,7 @@ contains
     call parse_variable(sys%namespace, 'CasidaTransitionDensities', "0", cas%trandens)
 
     if(cas%trandens /= "0") then
-      do iout = 1, size(sys%outp%what)
-        call io_function_read_how(sys%gr%sb, sys%namespace, sys%outp%how(iout))
-      end do
+      call io_function_read_how(sys%gr%sb, sys%namespace, sys%outp%how)
     end if
 
     !%Variable CasidaMomentumTransfer

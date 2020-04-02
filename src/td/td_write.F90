@@ -696,7 +696,10 @@ contains
     end if
 
     do ioutp = 1, size(outp%what)
-      if(outp%how(ioutp) == 0 .and. writ%out(OUT_N_EX)%write) call io_function_read_how(gr%sb, namespace, outp%how(ioutp))
+      if(outp%how(ioutp) == 0 .and. writ%out(OUT_N_EX)%write) then
+        call io_function_read_how(gr%sb, namespace, outp%how)
+        exit
+      end if
     end do
 
     !%Variable TDOutputDFTU

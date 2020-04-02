@@ -105,15 +105,19 @@ contains
   subroutine io_function_read_how(sb, namespace, how, ignore_error)
     type(simul_box_t), intent(in)  :: sb
     type(namespace_t), intent(in)  :: namespace
-    integer(8),        intent(out) :: how
+    integer(8), pointer, intent(inout) :: how(:)
     logical, optional, intent(in)  :: ignore_error !> Ignore error check. Used when called from some external utility.
+
+    type(block_t) :: blk
+    integer :: ncols, nrows, iout
 
     PUSH_SUB(io_function_read_how)
 
     how = 0_8
     
     call messages_obsolete_variable(namespace, 'OutputHow', 'OutputFormat')
-    
+    !**MFT**: this must be updated!
+
     !%Variable OutputFormat
     !%Type flag
     !%Default 0
@@ -202,81 +206,104 @@ contains
     !%Option integrate_yz bit(23)
     !% Integrates the function in the y-z plane and the result on the <i>x</i> axis is printed
     !%End
-    call parse_variable(namespace, 'OutputFormat', 0, how)
-    if(.not.varinfo_valid_option('OutputFormat', how, is_flag=.true.)) then
-      call messages_input_error('OutputFormat')
-    end if
+    if(parse_block(namespace, 'Output', blk) == 0) then
+      ncols = parse_block_cols(blk, 0)
+      if(ncols == 2) then
+        nrows = parse_block_n(blk)
+        do iout = 1, nrows
+          call parse_block_integer(blk, iout - 1, 1, how(iout))
+          write(*,*) '***MFT*** #  How:',how(iout)
+        end do
+      else if(ncols == 5) then
+        !TODO: the format with separate output interval for each type must be implemented here
+        message(1) = "This output format definition has not been implemented yet!"
+        call messages_fatal(1, namespace=namespace)
+      else
+        message(1) = "Unrecognized output format definition!"
+        call messages_fatal(1, namespace=namespace)
+      endif
+      call parse_block_end(blk)
+    else
+      !old format
+      call parse_variable(namespace, 'OutputFormat', 0, how(1))
+    endif
 
-    if(how  ==  0 .and. .not. optional_default(ignore_error, .false.)) then
-      write(message(1), '(a)') 'Must specify output method with variable OutputFormat.'
-      call messages_fatal(1, only_root_writes = .true.)
-     end if
+    do iout = 1, nrows
+      if(.not.varinfo_valid_option('OutputFormat', how(iout), is_flag=.true.)) then
+        call messages_input_error('OutputFormat')
+      end if
 
-    ! some modes are not available in some circumstances
-    if(sb%dim == 1) then
-      if(bitand(how, OPTION__OUTPUTFORMAT__AXIS_Y) /= 0) then
-        message(1) = "OutputFormat = axis_y not available with Dimensions = 1."
-        call messages_fatal(1)
+      if(how(iout) ==  0 .and. .not. optional_default(ignore_error, .false.)) then
+        write(message(1), '(a)') 'Must specify output method with variable OutputFormat.'
+        call messages_fatal(1, only_root_writes = .true.)
       end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__PLANE_Z) /= 0) then
-        message(1) = "OutputFormat = plane_z not available with Dimensions = 1."
-        call messages_fatal(1)
-      end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__XCRYSDEN) /= 0) then
-        message(1) = "OutputFormat = xcrysden not available with Dimensions = 1."
-        call messages_fatal(1)
-      end if
-    end if
 
-    if(sb%dim <= 2) then
-      if(bitand(how, OPTION__OUTPUTFORMAT__AXIS_Z) /= 0) then
-        message(1) = "OutputFormat = axis_z not available with Dimensions <= 2."
-        call messages_fatal(1)
+      ! some modes are not available in some circumstances
+      if(sb%dim == 1) then
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__AXIS_Y) /= 0) then
+          message(1) = "OutputFormat = axis_y not available with Dimensions = 1."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__PLANE_Z) /= 0) then
+          message(1) = "OutputFormat = plane_z not available with Dimensions = 1."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__XCRYSDEN) /= 0) then
+          message(1) = "OutputFormat = xcrysden not available with Dimensions = 1."
+          call messages_fatal(1)
+        end if
       end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__PLANE_X) /= 0) then
-        message(1) = "OutputFormat = plane_x not available with Dimensions <= 2."
-        call messages_fatal(1)
+
+      if(sb%dim <= 2) then
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__AXIS_Z) /= 0) then
+          message(1) = "OutputFormat = axis_z not available with Dimensions <= 2."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__PLANE_X) /= 0) then
+          message(1) = "OutputFormat = plane_x not available with Dimensions <= 2."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__PLANE_Y) /= 0) then
+          message(1) = "OutputFormat = plane_y not available with Dimensions <= 2."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__INTEGRATE_XY) /= 0) then
+          message(1) = "OutputFormat = integrate_xy not available with Dimensions <= 2."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__INTEGRATE_XZ) /= 0) then
+          message(1) = "OutputFormat = integrate_xz not available with Dimensions <= 2."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__INTEGRATE_YZ) /= 0) then
+          message(1) = "OutputFormat = integrate_yz not available with Dimensions <= 2."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__DX) /= 0) then
+          message(1) = "OutputFormat = dx not available with Dimensions <= 2."
+          call messages_fatal(1)
+        end if
+        if(bitand(how(iout), OPTION__OUTPUTFORMAT__CUBE) /= 0) then
+          message(1) = "OutputFormat = cube not available with Dimensions <= 2."
+          call messages_fatal(1)
+        end if
       end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__PLANE_Y) /= 0) then
-        message(1) = "OutputFormat = plane_y not available with Dimensions <= 2."
-        call messages_fatal(1)
-      end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__INTEGRATE_XY) /= 0) then
-        message(1) = "OutputFormat = integrate_xy not available with Dimensions <= 2."
-        call messages_fatal(1)
-      end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__INTEGRATE_XZ) /= 0) then
-        message(1) = "OutputFormat = integrate_xz not available with Dimensions <= 2."
-        call messages_fatal(1)
-      end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__INTEGRATE_YZ) /= 0) then
-        message(1) = "OutputFormat = integrate_yz not available with Dimensions <= 2."
-        call messages_fatal(1)
-      end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__DX) /= 0) then
-        message(1) = "OutputFormat = dx not available with Dimensions <= 2."
-        call messages_fatal(1)
-      end if
-      if(bitand(how, OPTION__OUTPUTFORMAT__CUBE) /= 0) then
-        message(1) = "OutputFormat = cube not available with Dimensions <= 2."
-        call messages_fatal(1)
-      end if
-    end if
 
 #if !defined(HAVE_NETCDF)
-    if (bitand(how, OPTION__OUTPUTFORMAT__NETCDF) /= 0) then
-      message(1) = 'Octopus was compiled without NetCDF support.'
-      message(2) = 'It is not possible to write output in NetCDF format.'
-      call messages_fatal(2)
-    end if
+      if (bitand(how(iout), OPTION__OUTPUTFORMAT__NETCDF) /= 0) then
+        message(1) = 'Octopus was compiled without NetCDF support.'
+        message(2) = 'It is not possible to write output in NetCDF format.'
+        call messages_fatal(2)
+      end if
 #endif
 #if !defined(HAVE_ETSF_IO)
-    if (bitand(how, OPTION__OUTPUTFORMAT__ETSF) /= 0) then
-      message(1) = 'Octopus was compiled without ETSF_IO support.'
-      message(2) = 'It is not possible to write output in ETSF format.'
-      call messages_fatal(2)
-    end if
+      if (bitand(how(iout), OPTION__OUTPUTFORMAT__ETSF) /= 0) then
+        message(1) = 'Octopus was compiled without ETSF_IO support.'
+        message(2) = 'It is not possible to write output in ETSF format.'
+        call messages_fatal(2)
+      end if
 #endif
+    end do
 
     POP_SUB(io_function_read_how)
   end subroutine io_function_read_how
