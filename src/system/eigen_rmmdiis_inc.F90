@@ -114,7 +114,7 @@ subroutine X(eigensolver_rmmdiis) (namespace, gr, st, hm, pre, tol, niter, conve
     call psib(1)%batch%copy_to(psib(2)%batch)
 
     ! get lambda 
-    call X(preconditioner_apply_batch)(pre, namespace, gr, hm, resb(1)%batch, psib(2)%batch)
+    call X(preconditioner_apply_batch)(pre, namespace, gr, hm, resb(1)%batch, psib(2)%batch, ik)
 
     call psib(1)%batch%copy_to(resb(2)%batch)
 
@@ -150,7 +150,7 @@ subroutine X(eigensolver_rmmdiis) (namespace, gr, st, hm, pre, tol, niter, conve
       ! for iter == 2 the preconditioning was done already
       if(iter > 2) then
         call psib(iter - 1)%batch%copy_to(psib(iter)%batch)
-        call X(preconditioner_apply_batch)(pre, namespace, gr, hm, resb(iter - 1)%batch, psib(iter)%batch)
+        call X(preconditioner_apply_batch)(pre, namespace, gr, hm, resb(iter - 1)%batch, psib(iter)%batch, ik)
       end if
 
       ! predict by jacobi
@@ -255,7 +255,7 @@ subroutine X(eigensolver_rmmdiis) (namespace, gr, st, hm, pre, tol, niter, conve
     SAFE_DEALLOCATE_A(mm)
 
     ! end with a trial move
-    call X(preconditioner_apply_batch)(pre, namespace, gr, hm, resb(niter)%batch, resb(niter - 1)%batch)
+    call X(preconditioner_apply_batch)(pre, namespace, gr, hm, resb(niter)%batch, resb(niter - 1)%batch, ik)
 
     call batch_xpay(gr%mesh%np, psib(niter)%batch, lambda, resb(niter - 1)%batch)
 
@@ -442,7 +442,7 @@ subroutine X(eigensolver_rmmdiis_min) (namespace, gr, st, hm, pre, niter, conver
         end do
       end if
 
-      call X(preconditioner_apply_batch)(pre, namespace, gr, hm, resb, kresb)
+      call X(preconditioner_apply_batch)(pre, namespace, gr, hm, resb, kresb, ik)
 
       call X(hamiltonian_elec_apply_batch)(hm, namespace, gr%mesh, kresb, resb)
 
