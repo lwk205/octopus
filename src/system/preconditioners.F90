@@ -35,6 +35,7 @@ module preconditioners_oct_m
   use poisson_oct_m
   use profiling_oct_m
   use stencil_star_oct_m
+  use stencil_stargeneral_oct_m
   use simul_box_oct_m
   use varinfo_oct_m
 
@@ -120,7 +121,12 @@ contains
     case(PRE_FILTER)
       ! the smoothing has a star stencil like the laplacian
       call nl_operator_init(this%op, "Preconditioner")
-      call stencil_star_get_lapl(this%op%stencil, gr%mesh%sb%dim, 1)
+      if(gr%mesh%sb%nonorthogonal) then
+        call stencil_stargeneral_get_arms(this%op%stencil, gr%mesh%sb)
+        call stencil_stargeneral_get_lapl(this%op%stencil, gr%mesh%sb%dim, 1)
+      else
+        call stencil_star_get_lapl(this%op%stencil, gr%mesh%sb%dim, 1)
+      end if
       call nl_operator_build(gr%mesh, this%op, gr%mesh%np, const_w = .not. gr%mesh%use_curvilinear)
 
       !%Variable PreconditionerFilterFactor
