@@ -39,3 +39,5 @@ EigensolverMaxIter = 50
 
 ProfilingMode = prof_io
 StatesPack = yes
+
+AllowCPUonly = yes
