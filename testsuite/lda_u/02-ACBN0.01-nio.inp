@@ -5,12 +5,12 @@ ExperimentalFeatures = yes
 
 EigenSolver = rmmdiis
 ConvRelDens = 5.0e-7
-EigensolverTolerance = 5e-8
 MaximumIter = 200
+ExtraStates = 6
 
 a = 7.8809
 %Species
-"Ni" | species_pseudo | hubbard_l | 2 
+"Ni" | species_pseudo | hubbard_l | 2 | hubbard_u | 5.0*eV 
 %
 PseudopotentialSet = hscv_pbe
 DFTULevel = dft_u_acbn0
@@ -48,9 +48,8 @@ LCAOStart= lcao_states
 %KPointsGrid
 2 | 2 | 1
 %
+SymmetrizeDensity = yes
 
-ExtraStates = 10
 
-FilterPotentials = filter_none
 AOThreshold = 0.05
 OutputLDA_U = occ_matrices + effectiveU + kanamoriU

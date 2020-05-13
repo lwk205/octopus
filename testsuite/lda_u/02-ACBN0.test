@@ -27,8 +27,8 @@ match ; Kinetic energy     ; GREPFIELD(static/info, 'Kinetic     =', 3) ;   187.
 match ; External energy    ; GREPFIELD(static/info, 'External    =', 3) ;  -349.06982061
 match ; Hubbard energy     ; GREPFIELD(static/info, 'Hubbard     =', 3) ;   0.14309296
 match ; Total Magnetic Moment ; GREPFIELD(static/info, 'mz = ', 3);  0.000000    
-match ; Local Magnetic Moment (Ni1) ; GREPFIELD(static/info, '1        Ni', 3);  1.878221
-match ; Local Magnetic Moment (Ni2) ; GREPFIELD(static/info, '2        Ni', 3); -1.878221
+match ; Local Magnetic Moment (Ni1) ; GREPFIELD(static/info, '1        Ni', 3);  3.504
+match ; Local Magnetic Moment (Ni2) ; GREPFIELD(static/info, '2        Ni', 3); -3.504
 match ; Local Magnetic Moment (O1) ;  GREPFIELD(static/info, '3         O', 3);  0.0000
 match ; Local Magnetic Moment (O2) ;  GREPFIELD(static/info, '4         O', 3);  0.0000
 

@@ -13,8 +13,9 @@ BoxShape = parallelepiped
 %
 Spacing = 0.55
 LCAOStart = lcao_states
-FilterPotentials = filter_none
 ExtraStates = 2
+Smearing = 0.025*eV
+SmearingFunction = fermi_dirac
 
 ConvRelDens = 5e-5
 EigensolverTolerance = 1e-7
