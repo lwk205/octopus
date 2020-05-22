@@ -144,9 +144,6 @@ contains
     class(charged_particle_t), intent(inout) :: this
     logical,                 intent(in)    :: from_scratch
 
-    integer :: n_rows, idir
-    type(block_t) :: blk
-
     PUSH_SUB(charged_particle_initial_conditions)
 
     call this%classical_particle_t%initial_conditions(from_scratch)
@@ -298,11 +295,7 @@ contains
   subroutine charged_particle_finalize(this)
     type(charged_particle_t), intent(inout) :: this
 
-    type(interaction_iterator_t) :: iter
-    class(interaction_abst_t), pointer :: interaction
-
     PUSH_SUB(charged_particle_finalize)
-
     POP_SUB(charged_particle_finalize)
   end subroutine charged_particle_finalize
 

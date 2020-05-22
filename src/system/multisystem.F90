@@ -85,7 +85,7 @@ contains
     character(len=128) :: system_name
     type(block_t) :: blk
     class(*), pointer :: sys
-    
+
     PUSH_SUB(multisystem_constructor)
 
     SAFE_ALLOCATE(system)
@@ -106,7 +106,9 @@ contains
     !% A maxwell system. (NOT IMPLEMENTED)
     !%Option classical_particle 3
     !% A classical particle. Used for testing purposes only.
-    !%Option multisystem 4
+    !%Option charged_particle 4
+    !% A charged classical particle.
+    !%Option multisystem 5
     !% A system containing other systems.
     !%End
     if (parse_block(system%namespace, 'Systems', blk) == 0) then
