@@ -19,7 +19,7 @@
 #include "global.h"
 
 module system_factory_oct_m
-  use celestial_body_oct_m
+  use classical_particle_oct_m
   use global_oct_m
   use messages_oct_m
   use multisystem_oct_m
@@ -33,11 +33,11 @@ module system_factory_oct_m
   public ::                        &
     system_factory_t
 
-  integer, parameter ::         &
-    SYSTEM_ELECTRONIC     = 1,  &
-    SYSTEM_MAXWELL        = 2,  &
-    SYSTEM_CELESTIAL_BODY = 3,  &
-    SYSTEM_MULTISYSTEM    = 4
+  integer, parameter ::             &
+    SYSTEM_ELECTRONIC         = 1,  &
+    SYSTEM_MAXWELL            = 2,  &
+    SYSTEM_CLASSICAL_PARTICLE = 3,  &
+    SYSTEM_MULTISYSTEM        = 4
 
   type, extends(system_factory_abst_t) :: system_factory_t
   contains
@@ -59,8 +59,8 @@ contains
     select case (type)
     case (SYSTEM_MULTISYSTEM)
       system => multisystem_t(namespace_t(name, parent=namespace), this)
-    case (SYSTEM_CELESTIAL_BODY)
-      system => celestial_body_t(namespace_t(name, parent=namespace))
+    case (SYSTEM_CLASSICAL_PARTICLE)
+      system => classical_particle_t(namespace_t(name, parent=namespace))
     case default
       system => null()
     end select

@@ -22,7 +22,7 @@ module td_oct_m
   use boundaries_oct_m
   use boundary_op_oct_m
   use calc_mode_par_oct_m
-  use celestial_body_oct_m
+  use classical_particle_oct_m
   use density_oct_m
   use energy_calc_oct_m
   use epot_oct_m
