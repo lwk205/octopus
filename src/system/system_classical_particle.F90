@@ -92,6 +92,8 @@ contains
 
     SAFE_ALLOCATE(sys)
 
+    call classical_particle_init(sys, namespace)
+
     POP_SUB(classical_particle_constructor)
   end function classical_particle_constructor
 
