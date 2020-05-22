@@ -19,7 +19,7 @@
 
 #include "global.h"
 
-module classical_particle_oct_m
+module system_classical_particle_oct_m
   use clock_oct_m
   use global_oct_m
   use interaction_abst_oct_m
@@ -40,8 +40,9 @@ module classical_particle_oct_m
   implicit none
 
   private
-  public ::               &
-    classical_particle_t
+  public ::                 &
+    classical_particle_t,   &
+    classical_particle_init
 
   type, extends(system_abst_t) :: classical_particle_t
     private
@@ -77,25 +78,36 @@ module classical_particle_oct_m
   end type classical_particle_t
 
   interface classical_particle_t
-    procedure classical_particle_init
+    procedure classical_particle_constructor
   end interface classical_particle_t
 
 contains
 
   ! ---------------------------------------------------------
-  function classical_particle_init(namespace) result(sys)
-    class(classical_particle_t), pointer    :: sys
-    type(namespace_t),       intent(in) :: namespace
+  function classical_particle_constructor(namespace) result(sys)
+    class(classical_particle_t), pointer :: sys
+    type(namespace_t),        intent(in) :: namespace
 
-    PUSH_SUB(classical_particle_init)
+    PUSH_SUB(classical_particle_constructor)
 
     SAFE_ALLOCATE(sys)
 
-    sys%namespace = namespace
+    POP_SUB(classical_particle_constructor)
+  end function classical_particle_constructor
+
+
+  ! ---------------------------------------------------------
+  subroutine classical_particle_init(this, namespace)
+    class(classical_particle_t), intent(inout) :: this
+    type(namespace_t),              intent(in) :: namespace
+
+    PUSH_SUB(classical_particle_init)
+
+    this%namespace = namespace
 
     call messages_print_stress(stdout, "Classical particle", namespace=namespace)
 
-    call space_init(sys%space, namespace)
+    call space_init(this%space, namespace)
 
     !%Variable ClassicalParticleMass
     !%Type float
@@ -103,18 +115,18 @@ contains
     !%Description
     !% Mass of classical particle in Kg.
     !%End
-    call parse_variable(namespace, 'ClassicalParticleMass', M_ONE, sys%mass)
-    call messages_print_var_value(stdout, 'ClassicalParticleMass', sys%mass)
+    call parse_variable(namespace, 'ClassicalParticleMass', M_ONE, this%mass)
+    call messages_print_var_value(stdout, 'ClassicalParticleMass', this%mass)
 
-    sys%quantities(POSITION)%required = .true.
-    sys%quantities(VELOCITY)%required = .true.
-    sys%quantities(POSITION)%protected = .true.
-    sys%quantities(VELOCITY)%protected = .true.
+    this%quantities(POSITION)%required = .true.
+    this%quantities(VELOCITY)%required = .true.
+    this%quantities(POSITION)%protected = .true.
+    this%quantities(VELOCITY)%protected = .true.
 
     call messages_print_stress(stdout, namespace=namespace)
 
     POP_SUB(classical_particle_init)
-  end function classical_particle_init
+  end subroutine classical_particle_init
 
   ! ---------------------------------------------------------
   subroutine classical_particle_add_interaction_partner(this, partner)
@@ -557,7 +569,7 @@ contains
     POP_SUB(classical_particle_finalize)
   end subroutine classical_particle_finalize
 
-end module classical_particle_oct_m
+end module system_classical_particle_oct_m
 
 !! Local Variables:
 !! mode: f90

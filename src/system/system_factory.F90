@@ -19,13 +19,13 @@
 #include "global.h"
 
 module system_factory_oct_m
-  use classical_particle_oct_m
   use global_oct_m
   use messages_oct_m
   use multisystem_oct_m
   use namespace_oct_m
   use system_oct_m
   use system_abst_oct_m
+  use system_classical_particle_oct_m
   use system_factory_abst_oct_m
   implicit none
 
