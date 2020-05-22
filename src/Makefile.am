@@ -489,6 +489,7 @@ system_f_srcs =                                 \
 	system/exponential.F90                  \
 	system/forces.F90                       \
 	system/interaction_abst.F90             \
+	system/interaction_coulomb_force.F90    \
 	system/interaction_gravity.F90          \
 	system/linear_solver.F90                \
 	system/magnetic.F90                     \

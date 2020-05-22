@@ -22,6 +22,7 @@ module system_charged_particle_oct_m
   use clock_oct_m
   use global_oct_m
   use interaction_abst_oct_m
+  use interaction_coulomb_force_oct_m
   use io_oct_m
   use iso_c_binding
   use messages_oct_m
@@ -120,21 +121,43 @@ contains
     class(charged_particle_t), target, intent(inout) :: this
     class(system_abst_t),            intent(inout) :: partner
 
+    class(interaction_coulomb_force_t), pointer :: coulomb_force
+    type(interaction_coulomb_force_t) :: coulomb_force_t
+
     PUSH_SUB(charged_particle_add_interaction_partner)
 
     call this%classical_particle_t%add_interaction_partner(partner)
+    if (partner%has_interaction(coulomb_force_t)) then
+      coulomb_force => interaction_coulomb_force_t(this%space%dim, partner)
+      this%quantities(POSITION)%required = .true.
+      this%quantities(CHARGE)%required = .true.
+      coulomb_force%system_charge => this%charge
+      ! coulomb_force%system_pos  => this%pos
+      call this%interactions%add(coulomb_force)
+    end if
 
     POP_SUB(charged_particle_add_interaction_partner)
   end subroutine charged_particle_add_interaction_partner
 
   ! ---------------------------------------------------------
-  logical function charged_particle_has_interaction(this, interaction)
+  logical function charged_particle_has_interaction(this, interaction) result(particle_has_interaction)
     class(charged_particle_t), intent(in) :: this
     class(interaction_abst_t), intent(in) :: interaction
 
+    logical classical_particle_has
+    logical charged_particle_has
+
     PUSH_SUB(charged_particle_has_interaction)
 
-    charged_particle_has_interaction = this%classical_particle_t%has_interaction(interaction)
+    classical_particle_has = this%classical_particle_t%has_interaction(interaction)
+    select type (interaction)
+    type is (interaction_coulomb_force_t)
+      charged_particle_has = .true.
+    class default
+      charged_particle_has = .false.
+    end select
+
+    particle_has_interaction = classical_particle_has .or. charged_particle_has
 
     POP_SUB(charged_particle_has_interaction)
   end function charged_particle_has_interaction
@@ -265,6 +288,16 @@ contains
     PUSH_SUB(charged_particle_set_pointers_to_interaction)
 
     call this%classical_particle_t%set_pointers_to_interaction(inter)
+    select type(inter)
+    type is(interaction_coulomb_force_t)
+      this%quantities(POSITION)%required = .true.
+      this%quantities(CHARGE)%required = .true.
+      ! inter%partner_pos => this%pos
+      inter%partner_charge => this%charge
+    class default
+      message(1) = "Unsupported interaction."
+      call messages_fatal(1)
+    end select
 
     POP_SUB(charged_particle_set_pointers_to_interaction)
   end subroutine charged_particle_set_pointers_to_interaction
@@ -284,9 +317,21 @@ contains
   subroutine charged_particle_update_interactions_finish(this)
     class(charged_particle_t), intent(inout) :: this
 
+    type(interaction_iterator_t) :: iter
+
     PUSH_SUB(charged_particle_update_interactions_finish)
 
     call this%classical_particle_t%update_interactions_finish()
+    call iter%start(this%interactions)
+    do while (iter%has_next())
+      select type (interaction => iter%get_next_interaction())
+      type is (interaction_coulomb_force_t)
+        ! this%tot_force(1:this%space%dim) = this%tot_force(1:this%space%dim) + interaction%force(1:this%space%dim)
+      class default
+        message(1) = "Unknown interaction by the charged particle " + this%namespace%get()
+        call messages_fatal(1)
+      end select
+    end do
 
     POP_SUB(charged_particle_update_interactions_finish)
   end subroutine charged_particle_update_interactions_finish
