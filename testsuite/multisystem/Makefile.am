@@ -33,6 +33,9 @@ dist_share_DATA =                                  \
 	04-propagation_beeman.test                 \
 	04-propagation_beeman.01-two_body.inp      \
 	04-propagation_beeman.02-three_body.inp    \
+	05-propagation_expmid.test                 \
+	05-propagation_expmid.01-two_body.inp      \
+	05-propagation_expmid.02-three_body.inp    \
 	99-carbon_hydrogen.test                    \
 	99-carbon_hydrogen.01-gs.inp               \
 	99-carbon_hydrogen.02-td.inp               \
