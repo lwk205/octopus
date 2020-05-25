@@ -508,7 +508,7 @@ system_f_srcs =                                 \
 	system/subspace.F90                     \
 	system/system.F90                       \
 	system/system_abst.F90                  \
-	system/system_classical_particle.F90    \
+	system/classical_particle.F90    \
 	system/system_factory.F90               \
 	system/system_factory_abst.F90          \
 	system/system_mxll.F90                  \
